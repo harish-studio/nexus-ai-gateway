@@ -23,6 +23,7 @@ wandb-*
 *.sh
 *.txt
 *.log
+*.json
 *.pyo
 notebooks/
 .DS_Store
