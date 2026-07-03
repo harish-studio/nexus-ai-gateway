@@ -1,0 +1,54 @@
+# config/providers.yaml
+
+providers:
+  - name: ollama
+    api_key_env_var: null
+    priority: 1
+    supports_streaming: true
+    models:
+      - name: qwen3.5:4b
+        roles: [chat]
+        max_context_tokens: 256000
+        cost_per_1m_input: 0.0
+        cost_per_1m_output: 0.0
+    default_model: qwen3.5:4b
+
+  - name: openai
+    api_key_env_var: OPENAI_API_KEY
+    priority: 2
+    supports_streaming: true
+    models:
+      - name: gpt-5.4
+        roles: [chat]
+        max_context_tokens: 400000
+        cost_per_1m_input: 2.50
+        cost_per_1m_output: 15.00
+      - name: gpt-5.4-nano 
+        roles: [chat, edit]
+        max_context_tokens: 400000
+        cost_per_1m_input: 0.20
+        cost_per_1m_output: 1.25
+    default_model: gpt-5.4
+
+  - name: anthropic
+    api_key_env_var: ANTHROPIC_API_KEY
+    priority: 3
+    supports_streaming: true
+    models:
+      - name: claude-sonnet-4-6
+        roles: [chat]
+        max_context_tokens: 1000000
+        cost_per_1m_input: 3.00
+        cost_per_1m_output: 15.00
+      - name: claude-haiku-4-5-20251001
+        roles: [chat, edit]
+        max_context_tokens: 200000
+        cost_per_1m_input: 1.00
+        cost_per_1m_output: 5.00
+      - name: claude-opus-4-8
+        roles: [chat]
+        max_context_tokens: 1000000
+        cost_per_1m_input: 5.00
+        cost_per_1m_output: 25.00
+    default_model: claude-sonnet-4-6
+    

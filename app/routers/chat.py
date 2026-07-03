@@ -1,0 +1,172 @@
+# app/routers/chat.py
+
+from typing import AsyncGenerator
+from uuid import uuid4
+
+import litellm
+from fastapi import APIRouter, HTTPException
+from fastapi import Response as FastAPIResponse
+from fastapi.responses import StreamingResponse
+
+from app.schemas.request import ChatRequest
+from app.schemas.response import ChatResponse
+from app.services import llm_client
+from app.services.fallback import execute as fallback_execute
+from app.services.pii_detector import (
+    RESPONSE_MONITORED_ENTITIES,
+    check_messages,
+    detect_pii,
+)
+from app.services.risk_classifier import RiskTier, classify
+from app.services.router import decide
+
+router = APIRouter()
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatResponse:
+    messages_as_dicts = [m.model_dump() for m in request.messages]
+
+    # Gate 1 — PII check on request
+    pii_in_request = check_messages(messages_as_dicts)
+    if pii_in_request:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "pii_detected_in_request",
+                "entities": sorted(pii_in_request),
+                "message": (
+                    "Request contains personal data. "
+                    "Remove PII before submitting to this gateway."
+                ),
+            },
+        )
+
+    # Gate 2 — EU AI Act risk classification
+    # Unacceptable (Article 5) → reject immediately with 403.
+    # High (Annex III) → allow but surface via Article 13 transparency header.
+    # Limited/Minimal → allow transparently; tier recorded in audit log only.
+    classification = classify(messages_as_dicts)
+
+    if classification.tier == RiskTier.UNACCEPTABLE:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "request_prohibited",
+                "risk_tier": classification.tier,
+                "reason": classification.reason,
+                "message": (
+                    "This request has been classified as an EU AI Act "
+                    "Article 5 prohibited practice and cannot be processed."
+                ),
+            },
+        )
+
+    # Route and execute with fallback chain
+    decision = await decide(request)
+
+    response = await fallback_execute(
+        decision=decision,
+        preference=request.model_preference,
+        messages=messages_as_dicts,
+        max_tokens=request.max_tokens,
+        request_id=str(uuid4()),
+        session_id=request.session_id,
+    )
+
+    # Gate 3 — PII check on response (egress)
+    # Uses tighter entity list — excludes PERSON to avoid false positives
+    # on LLM greetings. See pii_detector.py for rationale.
+    pii_in_response = detect_pii(
+        response.content,
+        entities=RESPONSE_MONITORED_ENTITIES,
+    )
+    if pii_in_response:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "pii_detected_in_response",
+                "entities": sorted(pii_in_response),
+                "message": (
+                    "The model response contained personal data and was blocked "
+                    "at egress. Tokens were consumed — see audit log."
+                ),
+            },
+        )
+
+    # Article 13 transparency — inform caller of High Risk classification
+    # via response header, not body, to preserve ChatResponse schema stability.
+    if classification.tier == RiskTier.HIGH:
+        fastapi_response.headers["X-Risk-Tier"] = "high"
+        fastapi_response.headers["X-Risk-Reason"] = classification.reason
+
+    return response
+
+
+@router.post("/chat/stream")
+async def chat_stream(request: ChatRequest) -> StreamingResponse:
+    messages_as_dicts = [m.model_dump() for m in request.messages]
+
+    # Gate 1 — PII check on request
+    # Response-side PII check is a known gap for streaming — buffering
+    # the full response before yielding defeats the purpose of streaming.
+    # Documented in SCALING.md.
+    pii_in_request = check_messages(messages_as_dicts)
+    if pii_in_request:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "pii_detected_in_request",
+                "entities": sorted(pii_in_request),
+                "message": (
+                    "Request contains personal data. "
+                    "Remove PII before submitting to this gateway."
+                ),
+            },
+        )
+
+    # Gate 2 — EU AI Act risk classification (streaming)
+    # Same Unacceptable rejection as non-streaming.
+    # High Risk header cannot be set on StreamingResponse mid-stream —
+    # documented as a known gap; mitigation is pre-flight classification
+    # before the stream opens, which is what this block does.
+    classification = classify(messages_as_dicts)
+    if classification.tier == RiskTier.UNACCEPTABLE:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "request_prohibited",
+                "risk_tier": classification.tier,
+                "reason": classification.reason,
+                "message": (
+                    "This request has been classified as an EU AI Act "
+                    "Article 5 prohibited practice and cannot be processed."
+                ),
+            },
+        )
+
+    decision = await decide(request)
+
+    extra_params = {}
+    if decision.provider == "ollama":
+        extra_params["api_base"] = llm_client.OLLAMA_BASE_URL
+        extra_params["extra_body"] = {"think": False}
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        response_stream = await litellm.acompletion(
+            model=f"{decision.provider}/{decision.chosen_model}",
+            messages=messages_as_dicts,
+            max_tokens=request.max_tokens,
+            stream=True,
+            **extra_params,
+        )
+
+        if isinstance(response_stream, litellm.CustomStreamWrapper):
+            async for chunk in response_stream:
+                delta = chunk.choices[0].delta.content
+                yield delta or ""
+        else:
+            content = response_stream.choices[0].message.content
+            yield content or ""
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")

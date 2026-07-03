@@ -1,0 +1,26 @@
+# # config/litellm_config.yaml
+# model:
+#   name: Qwen2.5 Coder 7B (Chat)
+#   provider: ollama
+#   model: qwen2.5-coder:7b
+#   temperature: 0.9  
+#   top_p: 1.0    
+#   max_tokens: 4096  
+#   repetition_penalty: 1.1   
+#   stop_sequences: ["\n", "\n\n"]
+#   stream: true  
+#   verbose: false    
+#   debug: false    
+#   log_level: info   
+#   log_file: None    
+#   log_format: json    
+#   log_date_format: %Y-%m%d %H:%M:%S   
+#   log_max_size: 10MB   
+#   log_backup_count: 5   
+#   log_rotation_time: 1d   
+#   log_rotation_type: time     
+#   log_rotation_suffix: .log    
+#   log_rotation_compress: true     
+#   log_rotation_delete_old_files: false    
+#   log_rotation_keep_old_files: 7  
+ 
