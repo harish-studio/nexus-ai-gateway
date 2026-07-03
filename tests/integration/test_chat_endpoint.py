@@ -108,7 +108,10 @@ def test_chat_accurate_routes_to_anthropic(chat_payload):
 
 @respx.mock
 def test_chat_accurate_trivial_downgrades_to_openai(chat_payload):
-    """ACCURATE + trivial prompt → gpt-5.4-nano, not Anthropic."""
+    """ACCURATE + trivial prompt → gpt-5.4-nano, not Anthropic.
+    Cache is mocked to return None (miss) so routing logic runs."""
+    from unittest.mock import patch, AsyncMock
+
     respx.post("https://api.openai.com/v1/chat/completions").mock(
         return_value=httpx.Response(
             200,
@@ -130,13 +133,21 @@ def test_chat_accurate_trivial_downgrades_to_openai(chat_payload):
 
     chat_payload["model_preference"] = "accurate"
     chat_payload["messages"] = [{"role": "user", "content": "Hi"}]
-    response = client.post("/chat", json=chat_payload)
+
+    # Force cache miss so routing logic runs — without this, a prior
+    # cached Ollama response for "Hi" would be served regardless of preference.
+    with patch(
+        "app.routers.chat.get_cached_response",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        response = client.post("/chat", json=chat_payload)
 
     assert response.status_code == 200
     body = response.json()
     assert body["provider"] == "openai"
-    assert body["cost_usd"] > 0.0        # gpt-5.4-nano charges per token, not free
-    assert body["cost_usd"] < 0.001      # but 8 tokens should cost under a tenth of a cent
+    assert body["cost_usd"] > 0.0
+    assert body["cost_usd"] < 0.001
 
 def test_chat_local_routes_to_ollama(chat_payload):
     """Hits real local Ollama — no mock. Skips cleanly if Ollama isn't up."""

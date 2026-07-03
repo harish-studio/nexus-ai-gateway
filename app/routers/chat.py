@@ -7,7 +7,9 @@ import litellm
 from fastapi import APIRouter, HTTPException
 from fastapi import Response as FastAPIResponse
 from fastapi.responses import StreamingResponse
-
+from app.services.semantic_cache import get_cached_response, store_response
+import redis.asyncio as aioredis
+import os
 from app.schemas.request import ChatRequest
 from app.schemas.response import ChatResponse
 from app.services import llm_client
@@ -61,8 +63,27 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
                 ),
             },
         )
+    
+    # Gate 3 — Semantic cache lookup
+    # High Risk requests bypass cache — re-evaluated fresh every time.
+    # All other tiers check cache first to save cost and latency.
+    redis_client = aioredis.from_url(
+        os.getenv("REDIS_URL", "redis://redis:6379/0")
+    )
+    
+    cached = None
+    if classification.tier != "high":
+        cached = await get_cached_response(redis_client, messages_as_dicts)
 
-    # Route and execute with fallback chain
+    if cached is not None:
+        # Reconstruct ChatResponse from cached dict and return immediately
+        cached_response = ChatResponse(**cached)
+        cached_response.cache_hit = True
+        cached_response.request_id = str(uuid4()) # fresh ID per caller
+        return cached_response
+
+
+    # Gat 4 - Route and execute with fallback chain
     decision = await decide(request)
 
     response = await fallback_execute(
@@ -74,7 +95,7 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
         session_id=request.session_id,
     )
 
-    # Gate 3 — PII check on response (egress)
+    # Gate 5 — PII check on response (egress)
     # Uses tighter entity list — excludes PERSON to avoid false positives
     # on LLM greetings. See pii_detector.py for rationale.
     pii_in_response = detect_pii(
@@ -93,9 +114,16 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
                 ),
             },
         )
+    
+    # Gate 6 — Store in cache (skips High Risk internally)
+    await store_response(
+        redis_client,
+        messages_as_dicts,
+        response.model_dump(),
+        classification.tier,
+    )
 
-    # Article 13 transparency — inform caller of High Risk classification
-    # via response header, not body, to preserve ChatResponse schema stability.
+    # Gate 7 - Article 13 transparency - inform caller of High Risk classification via response header, not body, to preserve ChatResponse schema stability.
     if classification.tier == RiskTier.HIGH:
         fastapi_response.headers["X-Risk-Tier"] = "high"
         fastapi_response.headers["X-Risk-Reason"] = classification.reason
