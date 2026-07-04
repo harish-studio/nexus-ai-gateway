@@ -19,8 +19,10 @@ from app.services.pii_detector import (
     check_messages,
     detect_pii,
 )
+from app.services.audit_service import build_audit_record, write_audit_record
 from app.services.risk_classifier import RiskTier, classify
 from app.services.router import decide
+from app.schemas.provider import RoutingDecision
 
 router = APIRouter()
 
@@ -76,10 +78,27 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
         cached = await get_cached_response(redis_client, messages_as_dicts)
 
     if cached is not None:
-        # Reconstruct ChatResponse from cached dict and return immediately
         cached_response = ChatResponse(**cached)
         cached_response.cache_hit = True
-        cached_response.request_id = str(uuid4()) # fresh ID per caller
+        cached_response.request_id = str(uuid4())
+
+        # Audit cache hits too — create a minimal decision for the record
+        cache_decision = RoutingDecision(
+            provider     = cached_response.provider,
+            chosen_model = cached_response.model_used,
+            reason       = "Cache hit — response served from semantic cache",
+        )
+        cache_audit = build_audit_record(
+            request_id      = cached_response.request_id,
+            user_id         = request.user_id,
+            session_id      = request.session_id,
+            requested_model = request.model_preference.value,
+            decision        = cache_decision,
+            classification  = classification,
+            pii_entities    = pii_in_request,
+            response        = cached_response,
+        )
+        await write_audit_record(cache_audit)
         return cached_response
 
 
@@ -127,6 +146,20 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
     if classification.tier == RiskTier.HIGH:
         fastapi_response.headers["X-Risk-Tier"] = "high"
         fastapi_response.headers["X-Risk-Reason"] = classification.reason
+
+    # Write audit record synchronously before returning —
+    # guarantees every request is logged regardless of client behaviour.
+    audit_record = build_audit_record(
+        request_id      = response.request_id,
+        user_id         = request.user_id,
+        session_id      = request.session_id,
+        requested_model = request.model_preference.value,
+        decision        = decision,
+        classification  = classification,
+        pii_entities    = pii_in_request,
+        response        = response,
+    )
+    await write_audit_record(audit_record)
 
     return response
 
