@@ -149,17 +149,22 @@ def test_chat_accurate_trivial_downgrades_to_openai(chat_payload):
     assert body["cost_usd"] < 0.001
 
 def test_chat_local_routes_to_ollama(chat_payload):
-    """Hits real local Ollama — no mock. Skips cleanly if Ollama isn't up."""
+    from unittest.mock import patch, AsyncMock
     chat_payload["model_preference"] = "local"
-    response = client.post("/chat", json=chat_payload)
+
+    with patch(
+        "app.routers.chat.get_cached_response",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        response = client.post("/chat", json=chat_payload)
 
     if response.status_code != 200:
         pytest.skip("Ollama not reachable locally — start it before running this test")
 
     body = response.json()
     assert body["provider"] == "ollama"
-    assert body["cost_usd"] == 0.0  # local inference must always be free
-
+    assert body["cost_usd"] == 0.0
 
 def test_chat_request_id_distinct_from_session_id(chat_payload):
     chat_payload["model_preference"] = "local"

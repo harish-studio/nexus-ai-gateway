@@ -26,6 +26,7 @@ from app.services.pii_detector import (
 from app.services.risk_classifier import RiskTier, classify
 from app.services.router import decide
 from app.services.semantic_cache import get_cached_response, store_response
+from app.services.metrics import record_request, record_pii_rejection
 
 router = APIRouter()
 
@@ -43,6 +44,7 @@ async def chat(
     # Gate 1 — PII check on request
     pii_in_request = check_messages(messages_as_dicts)
     if pii_in_request:
+        record_pii_rejection("request")
         raise HTTPException(
             status_code=400,
             detail={
@@ -102,6 +104,7 @@ async def chat(
             response        = cached_response,
         )
         await write_audit_record(cache_audit)
+        record_request(cache_audit)
         return cached_response
 
     # Gate 4 — Route and execute with fallback chain
@@ -122,6 +125,7 @@ async def chat(
         entities=RESPONSE_MONITORED_ENTITIES,
     )
     if pii_in_response:
+        record_pii_rejection("response")
         raise HTTPException(
             status_code=400,
             detail={
@@ -159,6 +163,7 @@ async def chat(
         response        = response,
     )
     await write_audit_record(audit_record)
+    record_request(audit_record)
 
     return response
 

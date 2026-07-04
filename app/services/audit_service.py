@@ -22,7 +22,7 @@ from app.schemas.audit import AuditRecord
 from app.schemas.response import ChatResponse
 from app.schemas.provider import RoutingDecision
 from app.services.risk_classifier import ClassificationResult
-
+from app.services.metrics import record_audit_write
 logger = logging.getLogger(__name__)
 
 _CREATE_TABLE_SQL = """
@@ -173,5 +173,7 @@ async def write_audit_record(record: AuditRecord) -> None:
         )
         await conn.close()
         logger.info("Audit record written: %s", record.request_id)
+        record_audit_write(success=True)
     except Exception as e:
         logger.warning("Audit write failed: %s", str(e))
+        record_audit_write(success=False) 
