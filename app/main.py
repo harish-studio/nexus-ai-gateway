@@ -6,9 +6,13 @@ from contextlib import asynccontextmanager
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.routers import chat, health
 from app.services.audit_service import ensure_audit_table
+from app.services.limiter import limiter
 from app.services.semantic_cache import ensure_index
 
 logger = logging.getLogger(__name__)
@@ -32,11 +36,14 @@ async def lifespan(app: FastAPI):
         logger.warning("Could not initialise audit table: %s", str(e))
 
     yield
-
     # --- Shutdown ---
 
 
 app = FastAPI(title="nexus-ai-gateway", lifespan=lifespan)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.include_router(chat.router)
 app.include_router(health.router)

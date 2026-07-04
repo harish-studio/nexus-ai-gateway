@@ -1,35 +1,44 @@
 # app/routers/chat.py
 
+import os
 from typing import AsyncGenerator
 from uuid import uuid4
 
 import litellm
-from fastapi import APIRouter, HTTPException
+import redis.asyncio as aioredis
+from fastapi import APIRouter, HTTPException, Request, Security
 from fastapi import Response as FastAPIResponse
 from fastapi.responses import StreamingResponse
-from app.services.semantic_cache import get_cached_response, store_response
-import redis.asyncio as aioredis
-import os
+
+from app.schemas.provider import RoutingDecision
 from app.schemas.request import ChatRequest
 from app.schemas.response import ChatResponse
 from app.services import llm_client
+from app.services.audit_service import build_audit_record, write_audit_record
+from app.services.auth import validate_api_key
 from app.services.fallback import execute as fallback_execute
+from app.services.limiter import limiter
 from app.services.pii_detector import (
     RESPONSE_MONITORED_ENTITIES,
     check_messages,
     detect_pii,
 )
-from app.services.audit_service import build_audit_record, write_audit_record
 from app.services.risk_classifier import RiskTier, classify
 from app.services.router import decide
-from app.schemas.provider import RoutingDecision
+from app.services.semantic_cache import get_cached_response, store_response
 
 router = APIRouter()
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatResponse:
-    messages_as_dicts = [m.model_dump() for m in request.messages]
+@limiter.limit("10/minute;50/hour")
+async def chat(
+    request: Request,
+    chat_request: ChatRequest,
+    fastapi_response: FastAPIResponse,
+    user_label: str = Security(validate_api_key),
+) -> ChatResponse:
+    messages_as_dicts = [m.model_dump() for m in chat_request.messages]
 
     # Gate 1 — PII check on request
     pii_in_request = check_messages(messages_as_dicts)
@@ -47,9 +56,6 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
         )
 
     # Gate 2 — EU AI Act risk classification
-    # Unacceptable (Article 5) → reject immediately with 403.
-    # High (Annex III) → allow but surface via Article 13 transparency header.
-    # Limited/Minimal → allow transparently; tier recorded in audit log only.
     classification = classify(messages_as_dicts)
 
     if classification.tier == RiskTier.UNACCEPTABLE:
@@ -65,14 +71,12 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
                 ),
             },
         )
-    
+
     # Gate 3 — Semantic cache lookup
-    # High Risk requests bypass cache — re-evaluated fresh every time.
-    # All other tiers check cache first to save cost and latency.
     redis_client = aioredis.from_url(
         os.getenv("REDIS_URL", "redis://redis:6379/0")
     )
-    
+
     cached = None
     if classification.tier != "high":
         cached = await get_cached_response(redis_client, messages_as_dicts)
@@ -82,7 +86,6 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
         cached_response.cache_hit = True
         cached_response.request_id = str(uuid4())
 
-        # Audit cache hits too — create a minimal decision for the record
         cache_decision = RoutingDecision(
             provider     = cached_response.provider,
             chosen_model = cached_response.model_used,
@@ -90,9 +93,9 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
         )
         cache_audit = build_audit_record(
             request_id      = cached_response.request_id,
-            user_id         = request.user_id,
-            session_id      = request.session_id,
-            requested_model = request.model_preference.value,
+            user_id         = user_label,  # from API key, not request body
+            session_id      = chat_request.session_id,
+            requested_model = chat_request.model_preference.value,
             decision        = cache_decision,
             classification  = classification,
             pii_entities    = pii_in_request,
@@ -101,22 +104,19 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
         await write_audit_record(cache_audit)
         return cached_response
 
-
-    # Gat 4 - Route and execute with fallback chain
-    decision = await decide(request)
+    # Gate 4 — Route and execute with fallback chain
+    decision = await decide(chat_request)
 
     response = await fallback_execute(
-        decision=decision,
-        preference=request.model_preference,
-        messages=messages_as_dicts,
-        max_tokens=request.max_tokens,
-        request_id=str(uuid4()),
-        session_id=request.session_id,
+        decision        = decision,
+        preference      = chat_request.model_preference,
+        messages        = messages_as_dicts,
+        max_tokens      = chat_request.max_tokens,
+        request_id      = str(uuid4()),
+        session_id      = chat_request.session_id,
     )
 
     # Gate 5 — PII check on response (egress)
-    # Uses tighter entity list — excludes PERSON to avoid false positives
-    # on LLM greetings. See pii_detector.py for rationale.
     pii_in_response = detect_pii(
         response.content,
         entities=RESPONSE_MONITORED_ENTITIES,
@@ -133,7 +133,7 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
                 ),
             },
         )
-    
+
     # Gate 6 — Store in cache (skips High Risk internally)
     await store_response(
         redis_client,
@@ -142,18 +142,17 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
         classification.tier,
     )
 
-    # Gate 7 - Article 13 transparency - inform caller of High Risk classification via response header, not body, to preserve ChatResponse schema stability.
+    # Gate 7 — Article 13 transparency header for High Risk
     if classification.tier == RiskTier.HIGH:
         fastapi_response.headers["X-Risk-Tier"] = "high"
         fastapi_response.headers["X-Risk-Reason"] = classification.reason
 
-    # Write audit record synchronously before returning —
-    # guarantees every request is logged regardless of client behaviour.
+    # Write audit record synchronously before returning
     audit_record = build_audit_record(
         request_id      = response.request_id,
-        user_id         = request.user_id,
-        session_id      = request.session_id,
-        requested_model = request.model_preference.value,
+        user_id         = user_label,  # from API key, not request body
+        session_id      = chat_request.session_id,
+        requested_model = chat_request.model_preference.value,
         decision        = decision,
         classification  = classification,
         pii_entities    = pii_in_request,
@@ -165,13 +164,15 @@ async def chat(request: ChatRequest, fastapi_response: FastAPIResponse) -> ChatR
 
 
 @router.post("/chat/stream")
-async def chat_stream(request: ChatRequest) -> StreamingResponse:
-    messages_as_dicts = [m.model_dump() for m in request.messages]
+@limiter.limit("10/minute;50/hour")
+async def chat_stream(
+    request: Request,
+    chat_request: ChatRequest,
+    user_label: str = Security(validate_api_key),
+) -> StreamingResponse:
+    messages_as_dicts = [m.model_dump() for m in chat_request.messages]
 
     # Gate 1 — PII check on request
-    # Response-side PII check is a known gap for streaming — buffering
-    # the full response before yielding defeats the purpose of streaming.
-    # Documented in SCALING.md.
     pii_in_request = check_messages(messages_as_dicts)
     if pii_in_request:
         raise HTTPException(
@@ -186,11 +187,7 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
             },
         )
 
-    # Gate 2 — EU AI Act risk classification (streaming)
-    # Same Unacceptable rejection as non-streaming.
-    # High Risk header cannot be set on StreamingResponse mid-stream —
-    # documented as a known gap; mitigation is pre-flight classification
-    # before the stream opens, which is what this block does.
+    # Gate 2 — EU AI Act risk classification
     classification = classify(messages_as_dicts)
     if classification.tier == RiskTier.UNACCEPTABLE:
         raise HTTPException(
@@ -206,7 +203,7 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
             },
         )
 
-    decision = await decide(request)
+    decision = await decide(chat_request)
 
     extra_params = {}
     if decision.provider == "ollama":
@@ -215,10 +212,10 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
 
     async def event_generator() -> AsyncGenerator[str, None]:
         response_stream = await litellm.acompletion(
-            model=f"{decision.provider}/{decision.chosen_model}",
-            messages=messages_as_dicts,
-            max_tokens=request.max_tokens,
-            stream=True,
+            model      = f"{decision.provider}/{decision.chosen_model}",
+            messages   = messages_as_dicts,
+            max_tokens = chat_request.max_tokens,
+            stream     = True,
             **extra_params,
         )
 
