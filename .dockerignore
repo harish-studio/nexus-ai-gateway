@@ -1,0 +1,49 @@
+# .dockerignore
+
+# Secrets — must never enter the image
+.env
+.env.test
+.env.*
+
+# Python runtime artefacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Development and test tooling
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+locustfile.py
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.cursor/
+*.code-workspace
+
+# Logs
+logs/
+*.log
+
+# Local test files
+test.json
+test2.json
+find_model.py
+
+# Docker
+docker-compose.yml
+docker-compose.*.yml
