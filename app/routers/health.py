@@ -17,7 +17,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 _PROVIDER_CHECKS = {
     "openai": openai_provider.health_check,
     "anthropic": anthropic_provider.health_check,
-    "ollama": ollama_provider.health_check,
+    "ollama_chat": ollama_provider.health_check,
 }
 
 _METRICS_STUB = """\
@@ -54,7 +54,7 @@ async def _check_database() -> dict[str, str]:
 
 async def _check_providers() -> dict[str, dict[str, str]]:
     results: dict[str, dict[str, str]] = {}
-    for provider in ["anthropic", "openai", "ollama"]:
+    for provider in ["anthropic", "openai", "ollama_chat"]:
         try:
             results[provider] = {"status": "ok" if await health_check(provider) else "error"}
         except Exception:

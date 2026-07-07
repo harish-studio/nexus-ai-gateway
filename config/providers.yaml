@@ -1,17 +1,17 @@
 # config/providers.yaml
 
 providers:
-  - name: ollama
+  - name: ollama_chat
     api_key_env_var: null
-    priority: 1
+    priority: 3
     supports_streaming: true
     models:
-      - name: qwen3.5:4b
+      - name: qwen2.5-coder:1.5b
         roles: [chat]
         max_context_tokens: 256000
         cost_per_1m_input: 0.0
         cost_per_1m_output: 0.0
-    default_model: qwen3.5:4b
+    default_model: qwen2.5-coder:1.5b
 
   - name: openai
     api_key_env_var: OPENAI_API_KEY
@@ -32,7 +32,7 @@ providers:
 
   - name: anthropic
     api_key_env_var: ANTHROPIC_API_KEY
-    priority: 3
+    priority: 1
     supports_streaming: true
     models:
       - name: claude-sonnet-4-6

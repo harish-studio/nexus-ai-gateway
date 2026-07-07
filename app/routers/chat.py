@@ -1,6 +1,7 @@
 # app/routers/chat.py
 
 import os
+import time
 from typing import AsyncGenerator
 from uuid import uuid4
 
@@ -80,12 +81,16 @@ async def chat(
     )
 
     cached = None
+    cache_latency_ms = 0
     if classification.tier != "high":
+        _cache_t0 = time.monotonic()
         cached = await get_cached_response(redis_client, messages_as_dicts)
+        cache_latency_ms = int((time.monotonic() - _cache_t0) * 1000)
 
     if cached is not None:
         cached_response = ChatResponse(**cached)
         cached_response.cache_hit = True
+        cached_response.latency_ms = cache_latency_ms
         cached_response.request_id = str(uuid4())
 
         cache_decision = RoutingDecision(
@@ -149,7 +154,7 @@ async def chat(
     # Gate 7 — Article 13 transparency header for High Risk
     if classification.tier == RiskTier.HIGH:
         fastapi_response.headers["X-Risk-Tier"] = "high"
-        fastapi_response.headers["X-Risk-Reason"] = classification.reason
+        fastapi_response.headers["X-Risk-Reason"] = classification.reason.encode("latin-1", errors="replace").decode("latin-1")
 
     # Write audit record synchronously before returning
     audit_record = build_audit_record(
@@ -211,7 +216,7 @@ async def chat_stream(
     decision = await decide(chat_request)
 
     extra_params = {}
-    if decision.provider == "ollama":
+    if decision.provider == "ollama_chat":
         extra_params["api_base"] = llm_client.OLLAMA_BASE_URL
         extra_params["extra_body"] = {"think": False}
 

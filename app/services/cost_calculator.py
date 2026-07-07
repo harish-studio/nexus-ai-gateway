@@ -8,7 +8,7 @@ from app.services.config_loader import get_model_rates
 _PROVIDER_CONFIGS = {
     "openai": OPENAI_CONFIG,
     "anthropic": ANTHROPIC_CONFIG,
-    "ollama": OLLAMA_CONFIG,
+    "ollama_chat": OLLAMA_CONFIG,
 }
 
 class CostCalculator:       

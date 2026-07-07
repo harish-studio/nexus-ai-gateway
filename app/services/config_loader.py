@@ -37,5 +37,4 @@ def get_model_rates(provider_name: str, model_name: str) -> tuple[float, float]:
         )
 
     return model_block["cost_per_1m_input"], model_block["cost_per_1m_output"] 
-    return model_rates
 

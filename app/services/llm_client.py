@@ -25,12 +25,13 @@ async def complete(
     t0 = time.monotonic()
 
     extra_params = {}
-    if decision.provider == "ollama":
+    if decision.provider == "ollama_chat":
         extra_params["api_base"] = OLLAMA_BASE_URL
         extra_params["extra_body"] = {"think": False}
+        extra_params["options"] = {"think": False}  # belt-and-braces: Ollama native API
 
     response = await litellm.acompletion(
-        model=f"{decision.provider}/{decision.chosen_model}",
+        model=f"ollama_chat/{decision.chosen_model}" if decision.provider == "ollama_chat" else f"{decision.provider}/{decision.chosen_model}",
         messages=messages,
         max_tokens=max_tokens,
         **extra_params,
@@ -93,12 +94,13 @@ async def stream(
     request: "ChatRequest",
 ):
     extra_params = {}
-    if decision.provider == "ollama":
+    if decision.provider == "ollama_chat":
         extra_params["api_base"] = OLLAMA_BASE_URL
         extra_params["extra_body"] = {"think": False}
+        extra_params["options"] = {"think": False}  # belt-and-braces: Ollama native API
 
     return await litellm.acompletion(
-        model=f"{decision.provider}/{decision.chosen_model}",
+        model=f"ollama_chat/{decision.chosen_model}" if decision.provider == "ollama_chat" else f"{decision.provider}/{decision.chosen_model}",
         messages=[m.model_dump() for m in request.messages],
         max_tokens=request.max_tokens,
         stream=True,

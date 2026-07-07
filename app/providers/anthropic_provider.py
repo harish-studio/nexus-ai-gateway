@@ -6,7 +6,7 @@ ANTHROPIC_CONFIG = ProviderConfig(
     name                = "anthropic",
     default_model       = "claude-sonnet-4-6",
     api_key_env_var     = "ANTHROPIC_API_KEY",
-    priority=3, # secondary to OpenAI (lower priority — higher number)
+    priority=1, # secondary to OpenAI (lower priority — higher number)
     max_context_tokens  = 1_000_000, # 200k tokens is a reasonable limit 
 )
 

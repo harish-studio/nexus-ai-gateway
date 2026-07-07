@@ -13,7 +13,7 @@ Classification method: intent + topic heuristic.
 A request is classified at a tier only when it matches at least one
 topic signal AND at least one intent signal from that tier's map.
 Rationale: the Act classifies AI systems by purpose, not subject matter
-alone — asking "what is a CV?" is not High Risk; making hiring decisions
+alone - asking "what is a CV?" is not High Risk; making hiring decisions
 is. Intent + topic captures this distinction more faithfully than
 topic-only matching.
 
@@ -36,7 +36,7 @@ class RiskTier:
 
 
 # ---------------------------------------------------------------------------
-# Signal map — (topic_signals, intent_signals) per tier/domain
+# Signal map - (topic_signals, intent_signals) per tier/domain
 # ---------------------------------------------------------------------------
 
 # Each entry is (frozenset of topic keywords, frozenset of intent keywords).
@@ -83,7 +83,7 @@ _HIGH_SIGNALS: list[tuple[frozenset, frozenset]] = [
         frozenset(["identify", "predict", "assess", "flag",
                    "profile", "detect", "classify"]),
     ),
-    # Medical (Annex III §5) — context guard: topic AND intent must co-occur
+    # Medical (Annex III §5) - context guard: topic AND intent must co-occur
     (
         frozenset(["patient", "symptom", "medical", "clinical",
                    "diagnosis", "treatment", "disease", "condition"]),
@@ -184,51 +184,51 @@ def _matches(text: str, signal_groups: list[tuple[frozenset, frozenset]]) -> tup
 def classify(messages: list[dict]) -> ClassificationResult:
     """
     Classifies a conversation into an EU AI Act risk tier.
-    Checks tiers in descending severity order — first match wins.
+    Checks tiers in descending severity order - first match wins.
     Returns MINIMAL if no signals match.
     """
     text = _extract_text(messages)
 
-    # Unacceptable — Article 5 prohibited practices
+    # Unacceptable - Article 5 prohibited practices
     match = _matches(text, _UNACCEPTABLE_SIGNALS)
     if match:
         return ClassificationResult(
             tier=RiskTier.UNACCEPTABLE,
             reason=(
-                f"Request matches Article 5 prohibited practice — "
+                f"Request matches Article 5 prohibited practice - "
                 f"topic: '{match[0]}', intent: '{match[1]}'"
             ),
             matched_topic=match[0],
             matched_intent=match[1],
         )
 
-    # High — Annex III use cases
+    # High - Annex III use cases
     match = _matches(text, _HIGH_SIGNALS)
     if match:
         return ClassificationResult(
             tier=RiskTier.HIGH,
             reason=(
-                f"Request matches Annex III high-risk use case — "
+                f"Request matches Annex III high-risk use case - "
                 f"topic: '{match[0]}', intent: '{match[1]}'"
             ),
             matched_topic=match[0],
             matched_intent=match[1],
         )
 
-    # Limited — Article 50 transparency obligations
+    # Limited - Article 50 transparency obligations
     match = _matches(text, _LIMITED_SIGNALS)
     if match:
         return ClassificationResult(
             tier=RiskTier.LIMITED,
             reason=(
-                f"Request matches Article 50 limited-risk category — "
+                f"Request matches Article 50 limited-risk category - "
                 f"topic: '{match[0]}', intent: '{match[1]}'"
             ),
             matched_topic=match[0],
             matched_intent=match[1],
         )
 
-    # Minimal — no signals matched
+    # Minimal - no signals matched
     return ClassificationResult(
         tier=RiskTier.MINIMAL,
         reason="No EU AI Act risk signals detected",

@@ -8,7 +8,7 @@ from app.schemas.provider import ProviderConfig
 PROVIDER_REGISTRY: dict[str, ProviderConfig] = {
     "openai":    OPENAI_CONFIG,
     "anthropic": ANTHROPIC_CONFIG,
-    "ollama":    OLLAMA_CONFIG,
+    "ollama_chat": OLLAMA_CONFIG,
 }
 
 def get_provider(name: str) -> ProviderConfig:

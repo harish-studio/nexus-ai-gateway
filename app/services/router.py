@@ -21,7 +21,7 @@ async def decide(request: ChatRequest) -> RoutingDecision:
     """
 
     if request.model_preference == ModelPreference.LOCAL:
-        provider = get_provider("ollama")
+        provider = get_provider("ollama_chat")
         return RoutingDecision(
             provider=provider.name,
             chosen_model=provider.default_model,
@@ -63,7 +63,7 @@ async def decide(request: ChatRequest) -> RoutingDecision:
     # AUTO (and structural default for any future enum value):
     # lowest-priority-number provider's default model
     provider = sorted(
-        [get_provider(n) for n in ("anthropic", "openai", "ollama")],
+        [get_provider(n) for n in ("anthropic", "openai", "ollama_chat")],
         key=lambda p: p.priority,
     )[0]
     return RoutingDecision(

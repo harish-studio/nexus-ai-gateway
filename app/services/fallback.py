@@ -46,7 +46,7 @@ def _build_chain(decision: RoutingDecision, preference: ModelPreference) -> list
     The first candidate in the list is always the original decision —
     execute() pops it and uses it as the primary attempt.
     """
-    ollama   = get_provider("ollama")
+    ollama   = get_provider("ollama_chat")
     openai   = get_provider("openai")
     anthropic = get_provider("anthropic")
 

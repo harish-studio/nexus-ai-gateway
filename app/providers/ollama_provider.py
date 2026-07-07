@@ -5,10 +5,10 @@ from app.schemas.provider import ProviderConfig
 from app.config.settings import settings
 
 OLLAMA_CONFIG = ProviderConfig(
-    name               = "ollama",
-    default_model      = "qwen3.5:4b",
+    name               = "ollama_chat",
+    default_model      = "qwen2.5-coder:1.5b",
     api_key_env_var    = "",
-    priority           = 1,
+    priority           = 3,
     max_context_tokens = 256_000,
 )
 
@@ -25,6 +25,6 @@ async def health_check() -> bool:
         if r.status_code != 200:
             return False
         models = r.json().get("models", [])
-        return any(m["name"].startswith("qwen3.5") for m in models)
+        return any(m["name"].startswith("qwen2.5-coder") for m in models)
     except Exception:
         return False
