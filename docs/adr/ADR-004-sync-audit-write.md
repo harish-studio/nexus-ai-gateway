@@ -1,8 +1,6 @@
 # ADR-004 — Audit Log: Synchronous Postgres Write over Redis Streams
 
 **Date:** 2026-07-04  
-**Status:** Accepted  
-**Author:** [Your name]
 
 ---
 
@@ -71,7 +69,8 @@ write penalty is negligible at the current scale (sub-10 RPS).
 **Negative:**
 - +5–10ms added to every request latency
 - If Postgres is unavailable, audit records are lost for the
-  duration of the outage (logged as warnings, not retried)
+  duration of the outage (logged as warnings, not retried). 
+  This can be mitigated by deploying it on a HA architecture in cloud.
 
 **Known gap:**
 - Cache hit responses reuse the original LLM call's `latency_ms`
@@ -84,5 +83,6 @@ write penalty is negligible at the current scale (sub-10 RPS).
 - Replace synchronous write with Redis Streams consumer at
   throughput >1,000 requests/minute
 - Add dead-letter queue for failed writes with automatic retry
+- Deploy on a HA architecture to avoid losing audit records
 - Consider Postgres partitioning by month for audit log tables
   exceeding 10M rows

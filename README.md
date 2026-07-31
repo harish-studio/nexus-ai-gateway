@@ -8,8 +8,6 @@
 
 A **governed, production-style enterprise AI gateway** built with FastAPI, LiteLLM, and Redis — demonstrating solution architecture across multi-provider LLM routing, EU AI Act compliance, semantic caching, PII protection, and full audit logging.
 
-> **Live demo:** _Deployment in progress — available shortly at [Cloud Run URL placeholder]_
-
 ---
 
 ## What this is
@@ -21,8 +19,6 @@ A **governed, production-style enterprise AI gateway** built with FastAPI, LiteL
 - **Every response is audited** — immutable Postgres records with SHA-256 integrity hashing
 - **Repeated questions are cached** semantically using Redis 8 vector search and FastEmbed embeddings
 - **Every caller is authenticated** and rate-limited per API key
-
-Built as Portfolio Project 5 of a five-project GenAI Solution Architect portfolio.
 
 ---
 
@@ -145,47 +141,13 @@ pytest -v tests/unit/
 99 tests — unit + integration, covering all governance gates, routing logic,
 fallback chains, semantic cache, audit log, and authentication.
 
----
-
-## Project context
-
-This is **Portfolio Project 5** of a five-project GenAI Solution Architect portfolio,
-built to demonstrate production-style system design across:
-
-| Project | Focus |
-|---|---|
-| P1 — `lex-ai` | RAG system with LangChain, OpenSearch, Cohere |
-| P2 — `atlas-supply` | LangGraph/MCP agentic orchestration |
-| P3 — `kronos-agent` | Document-processing LangChain/LangGraph agent |
-| P4 — `forge-mlops` | MLOps fine-tuning stack (PyTorch, LoRA/QLoRA) |
-| **P5 — `nexus-ai-gateway`** | **Governed enterprise AI gateway (this repo)** |
-
----
-
-## Über dieses Projekt / Over dit project
-
-**Deutsch:** `nexus-ai-gateway` ist ein gesteuertes Enterprise-KI-Gateway,
-das Multi-Provider-LLM-Routing mit EU-KI-Verordnungs-Compliance,
-semantischem Caching und vollständiger Audit-Protokollierung kombiniert.
-Entwickelt als Architektur-Portfolio für GenAI Solution Architect-Rollen.
-
-**Nederlands:** `nexus-ai-gateway` is een beheerd enterprise AI-gateway
-dat multi-provider LLM-routering combineert met EU AI Act-compliance,
-semantische caching en volledige auditregistratie.
-Ontwikkeld als architectuurportfolio voor GenAI Solution Architect-functies.
-
-> *Note: The German and Dutch summaries above were written with translation
-> assistance. My working language is English.*
-
----
-
 ## Author
 
 Built by a GenAI Solution Architect with ~10 years of TPM and AI/ML delivery
 experience across consulting and GCC environments in India, targeting
-EU Solution Architect roles.
+Solution Architect roles.
 
-Regulatory knowledge: EU AI Act (Regulation 2024/1689) · Certifications: OCI GenAI Professional · AWS SAA-C03 *(in progress)*
+Regulatory knowledge: EU AI Act (Regulation 2024/1689)
 
 ---
 

@@ -1,8 +1,6 @@
 # ADR-002 — PII Detection: Detect-and-Reject over Scrub-and-Forward
 
 **Date:** 2026-07-04  
-**Status:** Accepted  
-**Author:** [Your name]
 
 ---
 
@@ -64,8 +62,7 @@ missing genuine PII.
 
 **Known gaps:**
 - English only (`language="en"`) — multilingual support requires
-  `NlpEngineProvider` with additional spaCy models (de, nl)
-  for German/Dutch EU deployments
+  `NlpEngineProvider` with additional spaCy models
 - Streaming response PII check not implemented — buffering a full
   stream before yielding defeats the purpose of streaming;
   documented as a known limitation in SCALING.md
@@ -74,6 +71,6 @@ missing genuine PII.
   false positives on common geographic references in conversation
 
 **Production upgrade path:**
-- Add multilingual spaCy models for EU market deployment
+- Add multilingual spaCy models for other market deployments
 - Implement confidence score tuning per entity type rather than
   a single global threshold

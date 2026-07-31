@@ -1,8 +1,6 @@
 # ADR-001 — Semantic Cache: FastEmbed over sentence-transformers
 
-**Date:** 2026-07-04  
-**Status:** Accepted  
-**Author:** [Your name]
+**Date:** 2026-07-04   
 
 ---
 

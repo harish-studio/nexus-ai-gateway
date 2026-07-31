@@ -1,8 +1,6 @@
 # ADR-003 — EU AI Act Classifier: Keyword Heuristic over LLM-Based Classification
 
 **Date:** 2026-07-04  
-**Status:** Accepted  
-**Author:** [Your name]
 
 ---
 

@@ -95,7 +95,7 @@ and will be updated here after the initial deployment run.
 | Max sustainable RPS (3 instances) | [TBD] |
 | First bottleneck under load | [TBD] |
 
-> _Update this table after running:_
+> _Table to be updated after running:_
 > ```bash
 > locust -f tests/load/locustfile.py \
 >   --host https://[CLOUD-RUN-URL] \
