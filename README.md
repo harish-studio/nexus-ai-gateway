@@ -1,7 +1,7 @@
 # nexus-ai-gateway
 
 ![Python](https://img.shields.io/badge/python-3.11-blue)
-![Tests](https://img.shields.io/badge/tests-99%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-91%20passing-brightgreen)
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
 ![EU AI Act](https://img.shields.io/badge/EU%20AI%20Act-compliant-green)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
@@ -12,7 +12,7 @@ A **governed, production-style enterprise AI gateway** built with FastAPI, LiteL
 
 ## What this is
 
-`nexus-ai-gateway` is a governed API gateway that sits in front of multiple LLM providers (OpenAI, Anthropic, Ollama) and enforces enterprise-grade controls on every request:
+`nexus-ai-gateway` is a governed API gateway that sits in front of multiple LLM providers (OpenAI, Anthropic, , NVIDIA NIM) and enforces enterprise-grade controls on every request:
 
 - **Every request is classified** against the EU AI Act's four risk tiers before reaching an LLM
 - **Every request is screened** for PII using Microsoft Presidio — detect-and-reject, never scrub-and-forward
@@ -40,7 +40,7 @@ flowchart TD
     E --> G[Semantic Cache\nRedis 8 · FastEmbed · 0.92 cosine threshold]
     G -->|HIT| H[Return cached response\ncache_hit: true]
     G -->|MISS| I[Complexity Router\ndecide provider and model]
-    I --> J[Fallback Chain\nOllama → OpenAI → Anthropic]
+    I --> J[Preference Router\nNVIDIA NIM · Anthropic · OpenAI · Ollama]
     J --> K[LLM Provider]
     K --> L[PII Detector\nPresidio · response scan]
     L -->|400 PII in response| Z5[Reject + audit egress block]
@@ -103,7 +103,7 @@ curl -X POST http://localhost:8000/chat \
 | Layer | Technology |
 |---|---|
 | API framework | FastAPI 0.100+ |
-| LLM routing | LiteLLM (OpenAI, Anthropic, Ollama) |
+| LLM routing | LiteLLM (OpenAI, Anthropic, , NVIDIA NIM) |
 | Semantic cache | Redis 8 vector search, FastEmbed `BAAI/bge-small-en-v1.5` |
 | PII detection | Microsoft Presidio + spaCy `en_core_web_lg` |
 | Audit log | Postgres 16, asyncpg |
@@ -121,6 +121,7 @@ Key architectural decisions are documented as Architecture Decision Records:
 - [ADR-002 — PII: detect-and-reject over scrub-and-forward](docs/adr/ADR-002-pii-detect-reject.md)
 - [ADR-003 — EU AI Act: keyword heuristic over LLM-based classification](docs/adr/ADR-003-eu-ai-act-classifier.md)
 - [ADR-004 — Audit log: synchronous Postgres write over Redis Streams](docs/adr/ADR-004-sync-audit-write.md)
+- [ADR-005 — NVIDIA Nemotron: dual-path provider (hosted NIM + local Ollama)](docs/adr/ADR-005-nvidia-nim-provider.md)
 
 See also:
 - [SCALING.md](docs/SCALING.md) — bottlenecks, scaling strategy, Cloud Run architecture
@@ -138,7 +139,7 @@ docker exec -it nexus-ai-gateway pytest -v
 pytest -v tests/unit/
 ```
 
-99 tests — unit + integration, covering all governance gates, routing logic,
+91 tests — unit + integration, covering all governance gates, routing logic,
 fallback chains, semantic cache, audit log, and authentication.
 
 ## Author
