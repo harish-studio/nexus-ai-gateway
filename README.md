@@ -1,6 +1,6 @@
 # nexus-ai-gateway
 
-![Python](https://img.shields.io/badge/python-3.11-blue)
+![Python](https://img.shields.io/badge/python-3.12-blue)
 ![Tests](https://img.shields.io/badge/tests-91%20passing-brightgreen)
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
 ![EU AI Act](https://img.shields.io/badge/EU%20AI%20Act-compliant-green)
@@ -12,7 +12,7 @@ A **governed, production-style enterprise AI gateway** built with FastAPI, LiteL
 
 ## What this is
 
-`nexus-ai-gateway` is a governed API gateway that sits in front of multiple LLM providers (OpenAI, Anthropic, , NVIDIA NIM) and enforces enterprise-grade controls on every request:
+`nexus-ai-gateway` is a governed API gateway that sits in front of multiple LLM providers (OpenAI, Anthropic, Ollama, and NVIDIA NIM) and enforces enterprise-grade controls on every request:
 
 - **Every request is classified** against the EU AI Act's four risk tiers before reaching an LLM
 - **Every request is screened** for PII using Microsoft Presidio — detect-and-reject, never scrub-and-forward
@@ -103,7 +103,7 @@ curl -X POST http://localhost:8000/chat \
 | Layer | Technology |
 |---|---|
 | API framework | FastAPI 0.100+ |
-| LLM routing | LiteLLM (OpenAI, Anthropic, , NVIDIA NIM) |
+| LLM routing | LiteLLM (OpenAI, Anthropic, Ollama, NVIDIA NIM) |
 | Semantic cache | Redis 8 vector search, FastEmbed `BAAI/bge-small-en-v1.5` |
 | PII detection | Microsoft Presidio + spaCy `en_core_web_lg` |
 | Audit log | Postgres 16, asyncpg |

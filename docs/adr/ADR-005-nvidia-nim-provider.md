@@ -39,7 +39,11 @@ Ollama guarantee data residency but are limited to smaller models on CPU-only ha
   completion content does not have personal data.
 
 - `ModelPreference.NVIDIA_LOCAL` — routes to Nemotron-mini pulled
-  locally with Ollama. Completions don't leave the host machine in this case and so data residency is guaranteed. This path is appropriate for workloads that may have personal data and works in scenarios where GDPR data localisation applies.
+  locally via Ollama for strict data localisation requirements. 
+  The gateway's PII gate prevents personal data reaching
+  any external provider by design. NVIDIA_LOCAL provides an additional
+  control layer for workloads requiring hard localisation regardless
+  of PII content.
 
 Both paths go through the entire governance stack — risk classifier,
 PII redactor, semantic cache, immutable audit log, Prometheus metrics —
@@ -116,15 +120,19 @@ Maintaining both makes the trade-off explicit and usage controlled.
   local Nemotron requests are audited, PII-scrubbed, risk-classified,
   and cached like OpenAI and Anthropic requests
 - Data residency requirement is met by `NVIDIA_LOCAL` — completions
-  don't leave the host machine, satisfying GDPR requirements for
-  personal data workloads
+  never leave the host machine. The gateway's PII gate additionally
+  prevents personal data reaching any external provider across all
+  paths. NVIDIA_LOCAL provides a further control layer for workloads
+  requiring hard localisation regardless of content.
 - Integration is reversible at the config layer — self-hosted NIM
   container requires changing `api_base` only
 
 **Negative:**
 - `NVIDIA` (hosted): ~1,000ms latency floor from network RTT to
-  NVIDIA US infrastructure; can be used for non-personal data workloads 
-  only where data residency matters
+  NVIDIA US infrastructure. The gateway's PII gate prevents personal
+  data reaching the hosted endpoint by design. For workloads requiring
+  hard data localisation regardless of content (air-gapped, regulated
+  financial data), use `NVIDIA_LOCAL` instead
 - `NVIDIA_LOCAL` (local): limited to smaller Nemotron variants on
   CPU-only hardware; inference speed (~500–2,000ms) is hardware-dependent
   and not reproducible across machines
@@ -137,10 +145,12 @@ Maintaining both makes the trade-off explicit and usage controlled.
 - Deploy NIM container on a GPU-enabled cloud instance co-located with the    
   gateway. Point `api_base` in `nvidia_nim_provider.py` at the self-hosted 
   endpoint
-- For hard EU data residency: self-hosted NIM on EU-region
-  infrastructure is the only path that preserves both model capability
-  and data localisation — the hosted endpoint cannot satisfy GDPR
-  data localisation requirements for personal data in completions
+- For strict data localisation requirements: the gateway's PII gate
+  prevents personal data reaching the hosted NIM endpoint by design.
+  For workloads requiring hard localisation regardless of PII content,
+  self-hosted NIM on EU-region infrastructure is the correct path —
+  deploy NIM container on EU-region GPU instance and point `api_base`
+  at the self-hosted endpoint
 - Evaluate NeMo Agent Toolkit for domain fine-tuning once a production
   GPU deployment is in place
 - Remove `NVIDIA_LOCAL` fallback to hosted NIM if the deployment
