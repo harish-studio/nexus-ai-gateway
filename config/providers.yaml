@@ -11,6 +11,11 @@ providers:
         max_context_tokens: 256000
         cost_per_1m_input: 0.0
         cost_per_1m_output: 0.0
+      - name: nemotron-mini
+        roles: [chat]
+        max_context_tokens: 128000
+        cost_per_1m_input: 0.0
+        cost_per_1m_output: 0.0
     default_model: qwen2.5-coder:1.5b
 
   - name: openai
@@ -51,4 +56,14 @@ providers:
         cost_per_1m_input: 5.00
         cost_per_1m_output: 25.00
     default_model: claude-sonnet-4-6
-    
+  - name: nvidia_nim
+    api_key_env_var: NVIDIA_NIM_API_KEY
+    priority: 4
+    supports_streaming: true
+    models:
+      - name: nvidia/nemotron-3.5-lightning-30b-a3b
+        roles: [chat]
+        max_context_tokens: 131072
+        cost_per_1m_input: 0.20
+        cost_per_1m_output: 0.20
+    default_model: nvidia/nemotron-3.5-lightning-30b-a3b

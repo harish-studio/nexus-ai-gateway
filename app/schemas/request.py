@@ -14,6 +14,8 @@ class ModelPreference(str, Enum):
     FAST     = "fast"      # cheapest capable model
     ACCURATE = "accurate"  # best model regardless of cost
     LOCAL    = "local"     # Ollama only (PII / air-gap)
+    NVIDIA   = "nvidia"    # explicit NIM routing — Nemotron
+    NVIDIA_LOCAL = "nvidia_local"
 
 class ChatRequest(BaseModel):
     messages:          list[Message] = Field(..., min_length=1)

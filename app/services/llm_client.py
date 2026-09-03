@@ -29,6 +29,8 @@ async def complete(
         extra_params["api_base"] = OLLAMA_BASE_URL
         extra_params["extra_body"] = {"think": False}
         extra_params["options"] = {"think": False}  # belt-and-braces: Ollama native API
+    if decision.provider == "nvidia_nim":
+        extra_params["api_key"] = settings.NVIDIA_NIM_API_KEY
 
     response = await litellm.acompletion(
         model=f"ollama_chat/{decision.chosen_model}" if decision.provider == "ollama_chat" else f"{decision.provider}/{decision.chosen_model}",
@@ -98,6 +100,8 @@ async def stream(
         extra_params["api_base"] = OLLAMA_BASE_URL
         extra_params["extra_body"] = {"think": False}
         extra_params["options"] = {"think": False}  # belt-and-braces: Ollama native API
+    if decision.provider == "nvidia_nim":
+        extra_params["api_key"] = settings.NVIDIA_NIM_API_KEY
 
     return await litellm.acompletion(
         model=f"ollama_chat/{decision.chosen_model}" if decision.provider == "ollama_chat" else f"{decision.provider}/{decision.chosen_model}",

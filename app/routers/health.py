@@ -6,7 +6,7 @@ import asyncpg
 import redis.asyncio as aioredis
 from fastapi import APIRouter, Response, status
 from fastapi.responses import PlainTextResponse
-from app.providers import anthropic_provider, ollama_provider, openai_provider
+from app.providers import anthropic_provider, ollama_provider, openai_provider, nvidia_nim_provider
 
 from app.config.settings import settings
 
@@ -18,6 +18,7 @@ _PROVIDER_CHECKS = {
     "openai": openai_provider.health_check,
     "anthropic": anthropic_provider.health_check,
     "ollama_chat": ollama_provider.health_check,
+    "nvidia_nim":  nvidia_nim_provider.health_check,
 }
 
 _METRICS_STUB = """\
@@ -54,7 +55,7 @@ async def _check_database() -> dict[str, str]:
 
 async def _check_providers() -> dict[str, dict[str, str]]:
     results: dict[str, dict[str, str]] = {}
-    for provider in ["anthropic", "openai", "ollama_chat"]:
+    for provider in ["anthropic", "openai", "ollama_chat", "nvidia_nim"]:
         try:
             results[provider] = {"status": "ok" if await health_check(provider) else "error"}
         except Exception:

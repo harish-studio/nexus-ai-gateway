@@ -28,6 +28,22 @@ async def decide(request: ChatRequest) -> RoutingDecision:
             reason="Client requested LOCAL — routed to Ollama",
         )
 
+    if request.model_preference == ModelPreference.NVIDIA:
+        provider = get_provider("nvidia_nim")
+        return RoutingDecision(
+            provider=provider.name,
+            chosen_model=provider.default_model,
+            reason="Client requested NVIDIA — routed to NIM-hosted Nemotron",
+        )
+
+    if request.model_preference == ModelPreference.NVIDIA_LOCAL:
+        provider = get_provider("ollama_chat")
+        return RoutingDecision(
+            provider=provider.name,
+            chosen_model="nemotron-mini",
+            reason="Client requested NVIDIA_LOCAL — routed to local Nemotron-mini via Ollama (data residency guaranteed)",
+        )
+
     if request.model_preference == ModelPreference.FAST:
         provider = get_provider("openai")
         return RoutingDecision(

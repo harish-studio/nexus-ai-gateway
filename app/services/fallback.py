@@ -49,6 +49,7 @@ def _build_chain(decision: RoutingDecision, preference: ModelPreference) -> list
     ollama   = get_provider("ollama_chat")
     openai   = get_provider("openai")
     anthropic = get_provider("anthropic")
+    nvidia_nim = get_provider("nvidia_nim")
 
     chains: dict[ModelPreference, list[FallbackCandidate]] = {
         ModelPreference.LOCAL: [
@@ -71,6 +72,18 @@ def _build_chain(decision: RoutingDecision, preference: ModelPreference) -> list
             FallbackCandidate(ollama.name,    ollama.default_model),
             FallbackCandidate(openai.name,    openai.default_model),
             FallbackCandidate(anthropic.name, anthropic.default_model),
+        ],
+        ModelPreference.NVIDIA: [
+            FallbackCandidate(nvidia_nim.name, nvidia_nim.default_model),  # Nemotron — primary
+            FallbackCandidate(anthropic.name,  anthropic.default_model),   # claude-sonnet-4-6
+            FallbackCandidate(openai.name,     openai.default_model),      # gpt-5.4
+            FallbackCandidate(ollama.name,     ollama.default_model),      # last resort
+        ],
+        ModelPreference.NVIDIA_LOCAL: [
+            FallbackCandidate(ollama.name,    "nemotron-mini"),           # local Nemotron — primary
+            FallbackCandidate(nvidia_nim.name, nvidia_nim.default_model), # hosted NIM fallback
+            FallbackCandidate(anthropic.name,  anthropic.default_model),  # claude-sonnet-4-6
+            FallbackCandidate(openai.name,     openai.default_model),     # gpt-5.4
         ],
     }
 

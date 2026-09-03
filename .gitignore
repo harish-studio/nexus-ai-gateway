@@ -49,3 +49,4 @@ downloads/
 .coverage/
 coverage.xml
 qdrant_storage/
+uv.lock
