@@ -50,7 +50,7 @@ def test_health_endpoint_reports_all_services():
     assert "providers" in body
     assert "openai" in body["providers"]
     assert "anthropic" in body["providers"]
-    assert "ollama" in body["providers"]
+    assert "ollama_chat" in body["providers"]
 
 
 # ---------------------------------------------------------------------------
@@ -68,7 +68,7 @@ def test_chat_auto_routes_to_lowest_priority_provider(chat_payload):
         pytest.skip("Ollama not reachable locally — start it before running this test")
 
     body = response.json()
-    assert body["provider"] == "ollama"
+    assert body["provider"] == "ollama_chat"
 
 @respx.mock
 def test_chat_accurate_routes_to_anthropic(chat_payload):
@@ -163,7 +163,7 @@ def test_chat_local_routes_to_ollama(chat_payload):
         pytest.skip("Ollama not reachable locally — start it before running this test")
 
     body = response.json()
-    assert body["provider"] == "ollama"
+    assert body["provider"] == "ollama_chat"
     assert body["cost_usd"] == 0.0
 
 def test_chat_request_id_distinct_from_session_id(chat_payload):
