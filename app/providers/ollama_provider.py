@@ -15,7 +15,7 @@ OLLAMA_CONFIG = ProviderConfig(
 # Reads from settings, which reads from .env / docker-compose environment block.
 # Never hardcode localhost here — from inside Docker, localhost means this
 # container, not the Ollama container.
-OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL or "http://ollama:11434"
+OLLAMA_BASE_URL = settings.OLLAMA_BASE_URL or "http://host.docker.internal:11434"
 
 
 async def health_check() -> bool:
