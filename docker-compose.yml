@@ -11,6 +11,7 @@ services:
     volumes:
       - ./config:/app/config
       - ./logs:/app/logs
+      - ./tests:/app/tests
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
@@ -19,7 +20,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16
     container_name: dev_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
